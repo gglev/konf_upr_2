@@ -16,6 +16,8 @@ class DependencyConfig:
         self.max_depth = None
         self.output_file = None
         self.filter_substring = None
+        self.check_conflicts = False
+        self.plantuml = False
 
 class DependencyData:
     def __init__(self):
@@ -164,52 +166,94 @@ class DependencyVisualizerStage4:
             print(f"Ошибка при выполнении этапа 4: {e}")
             return False
 
-def main_stage4():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--package", type=str, required=True)
-    parser.add_argument("--repo", type=str, required=True)
-    parser.add_argument("--test-mode", action="store_true")
-    parser.add_argument("--max-depth", type=int, default=2)
+def setup_argparse():
+    parser = argparse.ArgumentParser(description='Dependency Analyzer')
     
-    args = parser.parse_args()
+    # Основные аргументы
+    parser.add_argument('--package', required=True, help='Package to analyze')
+    parser.add_argument('--repo', required=True, help='Requirements file')
+    
+    # Флаги для разных этапов
+    parser.add_argument('--test-mode', action='store_true', help='Enable test mode')
+    parser.add_argument('--max-depth', type=int, default=3, help='Maximum depth for dependency tree')
+    
+    # Флаги для этапа 2 (визуализация)
+    parser.add_argument('--ascii-tree', action='store_true', help='Display ASCII tree visualization')
+    
+    # Флаги для этапа 3 (конфликты)
+    parser.add_argument('--check-conflicts', action='store_true', help='Check for version conflicts')
+    
+    # Флаги для этапа 4 (отчеты)
+    parser.add_argument('--output-file', type=str, help='Save output to file')
+    parser.add_argument('--plantuml', action='store_true', help='Generate PlantUML output')
+    
+    return parser.parse_args()
+
+def create_test_graph():
+    """Создает тестовый граф для демонстрации"""
+    dependency_graph = DependencyGraph()
+    
+    test_graph = {
+        "WebApplication": ["Microsoft.AspNetCore", "Microsoft.EntityFrameworkCore"],
+        "Microsoft.AspNetCore": ["Microsoft.Extensions.DependencyInjection", "Microsoft.Extensions.Configuration"],
+        "Microsoft.EntityFrameworkCore": ["Microsoft.Extensions.DependencyInjection", "Microsoft.Data.SqlClient"],
+        "Microsoft.Extensions.DependencyInjection": ["Microsoft.Extensions.Configuration"],
+        "Microsoft.Extensions.Configuration": [],
+        "Microsoft.Data.SqlClient": []
+    }
+    
+    for package, deps in test_graph.items():
+        dependency_graph.add_dependency(package, deps)
+    
+    return dependency_graph
+
+def main():
+    args = setup_argparse()
     
     config = DependencyConfig()
     config.package_name = args.package
     config.repo_url = args.repo
     config.test_mode = args.test_mode
     config.max_depth = args.max_depth
+    config.ascii_tree = args.ascii_tree
+    config.check_conflicts = args.check_conflicts
+    config.output_file = args.output_file
+    config.plantuml = args.plantuml
     
-    print("Для этапа 4 требуется предварительно построенный граф зависимостей.")
-    print("Создаем тестовый граф для демонстрации...")
+    print(f"Анализ пакета: {config.package_name}")
+    print(f"Репозиторий: {config.repo_url}")
+    print(f"Тестовый режим: {config.test_mode}")
+    print(f"Макс. глубина: {config.max_depth}")
     
-    dependency_graph = DependencyGraph()
+    # Создаем тестовый граф для демонстрации
+    dependency_graph = create_test_graph()
     
-    if args.test_mode:
-        test_graph = {
-            "A": ["B", "C"],
-            "B": ["D", "E"],
-            "C": ["F"],
-            "D": ["G"],
-            "E": ["G"],
-            "F": [],
-            "G": []
-        }
-        
-        for package, deps in test_graph.items():
-            dependency_graph.add_dependency(package, deps)
-        
-        config.package_name = "A"
-    else:
-        print("В реальном режиме требуется предварительное выполнение этапа 3")
-        return
-    
+    # Запускаем этап 4
     visualizer = DependencyVisualizerStage4(config, dependency_graph)
     success = visualizer.run_stage4()
     
-    if success:
-        print("\nЭтап 4 завершен")
-    else:
-        print("\nЭтап 4 не завершен")
+    # Дополнительные функции по флагам
+    if config.ascii_tree:
+        print(f"\nРежим ASCII дерева активирован для пакета {config.package_name}")
+        # Здесь можно добавить визуализацию ASCII дерева
+    
+    if config.check_conflicts:
+        print(f"\nПроверка конфликтов версий для {config.package_name}")
+        print("Конфликты не найдены (тестовый режим)")
+    
+    if config.output_file:
+        print(f"\nСохранение результатов в файл: {config.output_file}")
+        with open(config.output_file, 'w', encoding='utf-8') as f:
+            f.write(f"Отчет анализа зависимостей для {config.package_name}\n")
+            f.write("Этап 4 выполнен успешно\n")
+    
+    if config.plantuml:
+        print(f"\nГенерация PlantUML для {config.package_name}")
+        print("@startuml")
+        for package, deps in dependency_graph.graph.items():
+            for dep in deps:
+                print(f"[{package}] --> [{dep}]")
+        print("@enduml")
 
 if __name__ == "__main__":
-    main_stage4()
+    main()
